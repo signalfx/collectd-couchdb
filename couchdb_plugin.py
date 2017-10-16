@@ -235,8 +235,7 @@ class CouchDB1:
             type_instance = 'couchdb.'+str(k)
 
             sfx.dispatch_values(values=[val], dimensions=data['Dimensions'], plugin=PLUGIN_NAME,
-                                plugin_instance=data['InstanceID'], type=v, type_instance=type_instance,
-                                host=data['plugin_config']['Host'])
+                                plugin_instance=data['InstanceID'], type=v, type_instance=type_instance)
         log.info("Number of data points sent : "+str(dpm_count))
 
 
@@ -290,8 +289,7 @@ class CouchDB2:
                 k = k.replace(".value", "")
                 type_instance = "couchdb.{0}".format(str(k))
                 sfx.dispatch_values(values=[val], dimensions=data['Dimensions'], plugin=PLUGIN_NAME,
-                                    plugin_instance=data['InstanceID'], type=v, type_instance=type_instance,
-                                    host=data['plugin_config']['Host'])
+                                    plugin_instance=data['InstanceID'], type=v, type_instance=type_instance)
                 dpm_count = dpm_count + 1
             data['Dimensions'].pop('node', None)
          
@@ -312,8 +310,7 @@ class CouchDB2:
                 type_instance = "couchdb.{0}".format(str(k))
                 data['Dimensions']['db'] = db
                 sfx.dispatch_values(values=[val], dimensions=data['Dimensions'], plugin=PLUGIN_NAME,
-                                plugin_instance=data['InstanceID'], type=v, type_instance=type_instance,
-                                host=data['plugin_config']['Host'])
+                                plugin_instance=data['InstanceID'], type=v, type_instance=type_instance)
                 data['Dimensions'].pop('db', None)
                 dpm_count = dpm_count + 1        
 
