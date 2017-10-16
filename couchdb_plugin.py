@@ -196,6 +196,10 @@ def flattenDict(d, result=None):
                         index += 1
                     for keyA in value1:
                         flattenDict(value1, result)
+                elif isinstance(element, list):
+                    if len(element)==2:
+                        keyB = ".".join([key, str(element[0])])
+                        result[keyB] = element[1]   
         else:
             result[key]=value
     return result
@@ -277,12 +281,13 @@ class CouchDB2:
             data['Dimensions']['node'] = str(node)
             node_metrics = metrics['node_metrics']
             for (k,v) in node_metrics:
-                key = "{0}.value".format(k)
-                if key not in node_stats:
+                if k not in node_stats:
                     continue
-                val = node_stats.get(key)
+                val = node_stats.get(k)
                 if val is None:
                     val = 0
+                # Removing the '.value' string from the key - to make metric name simple
+                k = k.replace(".value", "")
                 type_instance = "couchdb.{0}".format(str(k))
                 sfx.dispatch_values(values=[val], dimensions=data['Dimensions'], plugin=PLUGIN_NAME,
                                     plugin_instance=data['InstanceID'], type=v, type_instance=type_instance,
