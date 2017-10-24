@@ -30,7 +30,7 @@ def wait_for_metrics():
 	start = time()
 	plugin = 'couchdb'
 	print "waiting for metrics from plugin {0}".format(plugin)
-	eventually_true(lambda: any([plugin in m.get('plugin_instance') for m in get_metric_data()]),
+	eventually_true(lambda: any([plugin in m.get('plugin') for m in get_metric_data()]),
 					TIMEOUT_SECS - (time() - start))
 	print 'Found!'
 
