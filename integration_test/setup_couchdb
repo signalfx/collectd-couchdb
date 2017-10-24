@@ -1,0 +1,15 @@
+#!/bin/bash
+
+wait_for () {
+    host=$1
+    while ! nc -z $host 5984
+    do
+      sleep 0.2
+    done
+}
+for host in couchdb210
+do
+	wait_for $host
+done 
+
+exec /.docker/run.sh
