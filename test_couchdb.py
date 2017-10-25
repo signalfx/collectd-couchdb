@@ -31,8 +31,6 @@ def mock_api_call(url, opener=None, auth_header=None):
         return sample_responses.node_stats
 
 
-
-
 import couchdb_plugin
 
 ConfigOption = collections.namedtuple('ConfigOption', ('key', 'values'))
@@ -57,6 +55,7 @@ mock_config.children = [
     ConfigOption('Password', ('password', )),
     ConfigOption('Testing', ('True', ))
 ]
+
 
 def test_default_config():
     module_config = couchdb_plugin.config(mock_config)
@@ -101,4 +100,3 @@ def test_config_ssl():
 @mock.patch('couchdb_plugin._api_call', mock_api_call)
 def test_with_default_metrics():
     couchdb_plugin.read(couchdb_plugin.config(mock_config))
-
