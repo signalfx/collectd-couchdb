@@ -1,10 +1,11 @@
 """
-This file contains exhaustive list of all the metrics those can be collected to monitor CouchDB.
+This file contains exhaustive list of all the metrics
+those can be collected to monitor CouchDB.
 """
 
 couchdb_metrics = {
-    "basic_metrics" : {
-        "node_metrics" : [
+    "basic_metrics": {
+        "node_metrics": [
             ("couchdb.httpd.aborted_requests.value", "counter"),
             ("couchdb.httpd.bulk_requests.value", "counter"),
             ("couchdb.httpd.requests.value", "counter"),
@@ -35,14 +36,14 @@ couchdb_metrics = {
             ("couchdb.httpd_status_codes.501.value", "counter"),
             ("couchdb.open_databases.value", "counter"),
             ("couchdb.open_os_files.value", "counter"),
-            ("couchdb.request_time.value.min","gauge"),
-            ("couchdb.request_time.value.max","gauge"),
-            ("couchdb.request_time.value.arithmetic_mean","gauge"),
-            ("couchdb.request_time.value.percentile.90","gauge"),
+            ("couchdb.request_time.value.min", "gauge"),
+            ("couchdb.request_time.value.max", "gauge"),
+            ("couchdb.request_time.value.arithmetic_mean", "gauge"),
+            ("couchdb.request_time.value.percentile.90", "gauge"),
             ("mem3.shard_cache.hit.value", "counter"),
             ("mem3.shard_cache.miss.value", "counter")
         ],
-        "db_metrics" : [
+        "db_metrics": [
             ("sizes.external", "gauge"),
             ("sizes.active", "gauge"),
             ("sizes.file", "gauge"),
@@ -55,8 +56,8 @@ couchdb_metrics = {
     # To enable enhanced_metrics:
     #   Uncomment the required metrics below.
     #   Add 'EnhancedMetrics' 'True' to the conf file
-    "enhanced_metrics" : {
-        "node_metrics" : [
+    "enhanced_metrics": {
+        "node_metrics": [
             # ("couchdb.httpd_status_codes.204.value", "counter"),
             # ("couchdb.httpd_status_codes.206.value", "counter"),
             # ("couchdb.httpd_status_codes.301.value", "counter"),
@@ -135,4 +136,3 @@ couchdb_metrics = {
         ]
     }
 }
-

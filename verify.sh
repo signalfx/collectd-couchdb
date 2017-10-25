@@ -1,5 +1,5 @@
 #!/bin/bash
-flake8 couchdb_plugin.py couchdb_metrics.py sfx_collectd_utilities.py urllib_ssl_handler.py
+flake8 --ignore E501 couchdb_plugin.py couchdb_metrics.py sfx_collectd_utilities.py urllib_ssl_handler.py
 
 if [ "$?" -ne 0 ]; then
 	exit 1;

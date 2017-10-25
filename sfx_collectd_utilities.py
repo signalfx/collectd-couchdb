@@ -133,7 +133,7 @@ def _parse_dimensions(dimensions={}, max_length=1022):
 
     if dimensions:
         dim_pairs = []
-        dim_pairs.extend("%s=%s" % (k, v) for k,v in dimensions.iteritems())
+        dim_pairs.extend("%s=%s" % (k, v) for k, v in dimensions.iteritems())
         dim_str = ",".join(dim_pairs)[:max_length]
         return dim_str
         # return ','.join(['='.join(p) for p in dimensions.items()])[:(max_length)]
@@ -232,7 +232,7 @@ def dispatch_values(values=None, dimensions=None,
     if dimensions is not None:
         # currently ingest parses dimensions out of the plugin_instance
         value.plugin_instance += '[{dims}]'.format(
-            dims=_parse_dimensions(dimensions, max_length=(plugin_instance_max_length-len(plugin_instance)-2)))
+            dims=_parse_dimensions(dimensions, max_length=(plugin_instance_max_length - len(plugin_instance) - 2)))
         value.meta = dimensions
     else:
         # With some versions of CollectD, a dummy metadata map must to be added
