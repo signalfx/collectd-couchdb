@@ -7,6 +7,7 @@ import urllib2
 import urllib_ssl_handler
 import couchdb_metrics
 import base64
+import six
 
 try:
     import collectd
@@ -44,8 +45,7 @@ def config(conf):
     enhanced_metrics = False
     testing = False
     instance_id = "{0}-{1}".format(PLUGIN_NAME, str(INSTANCE_COUNT))
-    plugin_instance = instance_id
-
+    
     for kv in conf.children:
         log.debug(str(kv))
 
@@ -67,8 +67,6 @@ def config(conf):
             username = kv.values[0]
         elif kv.key == 'Password' and kv.values[0]:
             password = kv.values[0]
-        elif kv.key == 'PluginInstance' and kv.values[0]:
-            plugin_instance = kv.values[0]
         elif kv.key == 'ssl_keyfile' and kv.values[0]:
             ssl_keys['ssl_keyfile'] = kv.values[0]
         elif kv.key == 'ssl_certificate' and kv.values[0]:
@@ -126,6 +124,20 @@ def config(conf):
         'db_metrics': db_metrics
     }
 
+    plugin_instance = '{0}:{1}'.format(plugin_config['Host'], plugin_config['Port'])
+    # If there are any custom_dimensions, those will be added to plugin_instance
+    if any(custom_dimensions):
+        formatted_dim = []
+        for k,v in six.iteritems(custom_dimensions):
+            formatted_dim.extend(["{0}={1}".format(k, v)])
+            log.info(formatted_dim)
+        dim_str = '[{0}]'.format(str(formatted_dim).replace('\'', '').
+                    replace(' ', '').replace('\"', '').replace('[', '').
+                    replace(']', ''))
+        log.info(dim_str)
+        plugin_instance += dim_str
+
+    log.info("Plugin_instance : {0}".format(plugin_instance))
     module_config = {
         'instance_id': instance_id,
         'log_level': log_level,
