@@ -26,6 +26,10 @@ log = logging.getLogger(PLUGIN_NAME)
 # Global count of the number of instances of the module.
 INSTANCE_COUNT = 0
 
+CONFIGS = []
+
+interval = 10
+
 
 def config(conf):
 
@@ -124,20 +128,18 @@ def config(conf):
         'db_metrics': db_metrics
     }
 
+    instance_id = "{0}-{1}".format(PLUGIN_NAME, str(plugin_config['Node']))
     plugin_instance = '{0}:{1}'.format(plugin_config['Host'], plugin_config['Port'])
     # If there are any custom_dimensions, those will be added to plugin_instance
     if any(custom_dimensions):
         formatted_dim = []
         for k, v in six.iteritems(custom_dimensions):
             formatted_dim.extend(["{0}={1}".format(k, v)])
-            log.info(formatted_dim)
-        dim_str = '[{0}]'.format(str(formatted_dim).replace('\'', '').
+        dim_str = '({0})'.format(str(formatted_dim).replace('\'', '').
                                  replace(' ', '').replace('\"', '').replace('[', '').
                                  replace(']', ''))
-        log.info(dim_str)
         plugin_instance += dim_str
 
-    log.info("Plugin_instance : {0}".format(plugin_instance))
     module_config = {
         'instance_id': instance_id,
         'log_level': log_level,
@@ -152,20 +154,11 @@ def config(conf):
         'plugin_config': plugin_config,
         'metrics': metrics,
     }
-
+    
     if testing:
         return module_config
 
-    if interval is not None:
-        collectd.register_read(read, interval,
-                               data=module_config,
-                               name=PLUGIN_NAME)
-    else:
-        collectd.register_read(read, data=module_config,
-                               name=PLUGIN_NAME)
-
-    global INSTANCE_COUNT
-    INSTANCE_COUNT = INSTANCE_COUNT + 1
+    CONFIGS.append(module_config)
 
 
 def _api_call(url, opener=None, auth_header=None):
@@ -227,7 +220,7 @@ def flatten_dict(d, result=None):
     return result
 
 
-def read(data):
+def read():
 
     """
     The read method will get the different nodes present in cluster.
@@ -235,79 +228,80 @@ def read(data):
     Gets all the dbs present and gets db metrics for them.
     Dispatches all the metrics.
     """
-    global log
-    log = logging.getLogger(data['instance_id'])
+    for conf in CONFIGS:
+        global log
+        log = logging.getLogger(conf['instance_id'])
 
-    log.info("READING CALLBACK")
+        log.info("READING CALLBACK")
 
-    node_stats = {}
-    auth_header = None
-    if "auth_header" in data:
-        auth_header = data['auth_header']
-    opener = data['opener']
-    base_url = data['base_url']
+        node_stats = {}
+        auth_header = None
+        if "auth_header" in conf:
+            auth_header = conf['auth_header']
+        opener = conf['opener']
+        base_url = conf['base_url']
 
-    node = data['plugin_config']['Node']
+        node = conf['plugin_config']['Node']
 
-    metrics = data['metrics']
+        metrics = conf['metrics']
 
-    # API call to the stats_url will provide the stats of the node
-    stats_url = "{0}/_node/{1}/_stats".format(base_url, str(node))
-    node_stats = flatten_dict(_api_call(stats_url, opener=opener, auth_header=auth_header))
-    # Node name is added to the dimensions to filter them easily.
-    data['dimensions']['node'] = str(node)
-    node_metrics = metrics['node_metrics']
+        # API call to the stats_url will provide the stats of the node
+        stats_url = "{0}/_node/{1}/_stats".format(base_url, str(node))
+        node_stats = flatten_dict(_api_call(stats_url, opener=opener, auth_header=auth_header))
+        # Node name is added to the dimensions to filter them easily.
+        conf['dimensions']['node'] = str(node)
+        node_metrics = metrics['node_metrics']
 
-    # To keep track of number of dpm sent.
-    dpm_count = 0
+        # To keep track of number of dpm sent.
+        dpm_count = 0
 
-    for (k, v) in node_metrics:
-        if k not in node_stats:
-            continue
-        val = node_stats.get(k)
-        if val is None:
-            val = 0
-        # Removing the '.value' string from the key - to make metric name simple
-        k = k.replace(".value", "")
-        type_instance = "couchdb.{0}".format(str(k))
-        sfx.dispatch_values(values=[val],
-                            dimensions=data['dimensions'],
-                            plugin=PLUGIN_NAME,
-                            plugin_instance=data['plugin_instance'],
-                            type=v,
-                            type_instance=type_instance)
-        dpm_count = dpm_count + 1
-    data['dimensions'].pop('node', None)
+        for (k, v) in node_metrics:
+            if k not in node_stats:
+                continue
+            val = node_stats.get(k)
+            if val is None:
+                val = 0
+            # Removing the '.value' string from the key - to make metric name simple
+            k = k.replace(".value", "")
+            type_instance = "couchdb.{0}".format(str(k))
+            sfx.dispatch_values(values=[val],
+                                dimensions=conf['dimensions'],
+                                plugin=PLUGIN_NAME,
+                                plugin_instance=conf['plugin_instance'],
+                                type=v,
+                                type_instance=type_instance)
+            dpm_count = dpm_count + 1
+        conf['dimensions'].pop('node', None)
 
-    # API call to the nodes_list_url will provide the list of all the nodes present in the cluster.
-    nodes_list_url = "{0}/_membership".format(base_url)
-    cluster_nodes_list = (_api_call(nodes_list_url, opener=opener, auth_header=auth_header))['cluster_nodes']
+        # API call to the nodes_list_url will provide the list of all the nodes present in the cluster.
+        nodes_list_url = "{0}/_membership".format(base_url)
+        cluster_nodes_list = (_api_call(nodes_list_url, opener=opener, auth_header=auth_header))['cluster_nodes']
 
-    if node == cluster_nodes_list[0]:
-        # API call to the all_dbs_url will provide the list of db's present in CouchDB.
-        all_dbs_url = "{0}/_all_dbs".format(base_url)
-        dbs_list = _api_call(all_dbs_url, opener=opener, auth_header=auth_header)
-        # The stats for each db like disk_size, doc_count etc are collected.
-        for db in dbs_list:
-            db_url = "{0}/{1}".format(base_url, str(db))
-            db_metrics = flatten_dict(_api_call(db_url, opener=opener, auth_header=auth_header))
-            for (k, v) in metrics['db_metrics']:
-                if k not in db_metrics:
-                    continue
-                val = db_metrics.get(k)
-                if val is None:
-                    val = 0
-                type_instance = "couchdb.{0}".format(str(k))
-                data['dimensions']['db'] = db
-                sfx.dispatch_values(values=[val], dimensions=data['dimensions'],
-                                    plugin=PLUGIN_NAME,
-                                    plugin_instance=data['plugin_instance'],
-                                    type=v,
-                                    type_instance=type_instance)
-                data['dimensions'].pop('db', None)
-                dpm_count = dpm_count + 1
+        if node == cluster_nodes_list[0]:
+            # API call to the all_dbs_url will provide the list of db's present in CouchDB.
+            all_dbs_url = "{0}/_all_dbs".format(base_url)
+            dbs_list = _api_call(all_dbs_url, opener=opener, auth_header=auth_header)
+            # The stats for each db like disk_size, doc_count etc are collected.
+            for db in dbs_list:
+                db_url = "{0}/{1}".format(base_url, str(db))
+                db_metrics = flatten_dict(_api_call(db_url, opener=opener, auth_header=auth_header))
+                for (k, v) in metrics['db_metrics']:
+                    if k not in db_metrics:
+                        continue
+                    val = db_metrics.get(k)
+                    if val is None:
+                        val = 0
+                    type_instance = "couchdb.{0}".format(str(k))
+                    conf['dimensions']['db'] = db
+                    sfx.dispatch_values(values=[val], dimensions=conf['dimensions'],
+                                        plugin=PLUGIN_NAME,
+                                        plugin_instance=conf['plugin_instance'],
+                                        type=v,
+                                        type_instance=type_instance)
+                    conf['dimensions'].pop('db', None)
+                    dpm_count = dpm_count + 1
 
-    log.info("{0} data points sent for instance : {1}".format(str(dpm_count), data['instance_id']))
+        log.info("{0} data points sent for instance : {1}".format(str(dpm_count), conf['instance_id']))
 
 
 def init():
@@ -328,5 +322,6 @@ if __name__ == "__main__":
     pass
 else:
     collectd.register_config(config)
+    collectd.register_read(read, interval, name=PLUGIN_NAME)
     collectd.register_init(init)
     collectd.register_shutdown(shutdown)
