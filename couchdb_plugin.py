@@ -234,75 +234,84 @@ def read():
 
         log.info("READING CALLBACK")
 
-        node_stats = {}
-        auth_header = None
-        if "auth_header" in conf:
-            auth_header = conf['auth_header']
-        opener = conf['opener']
         base_url = conf['base_url']
+        up_url = "{0}/_up".format(base_url)
+        try:
+            status = (_api_call(up_url))['status']
+        except:
+            status = "fail"
+        if status == 'ok':
+            node_stats = {}
+            auth_header = None
+            if "auth_header" in conf:
+                auth_header = conf['auth_header']
+            opener = conf['opener']
+            node = conf['plugin_config']['Node']
 
-        node = conf['plugin_config']['Node']
+            metrics = conf['metrics']
 
-        metrics = conf['metrics']
+            # API call to the stats_url will provide the stats of the node
+            stats_url = "{0}/_node/{1}/_stats".format(base_url, str(node))
+            node_stats = flatten_dict(_api_call(stats_url, opener=opener, auth_header=auth_header))
+            # Node name is added to the dimensions to filter them easily.
+            conf['dimensions']['node'] = str(node)
+            node_metrics = metrics['node_metrics']
 
-        # API call to the stats_url will provide the stats of the node
-        stats_url = "{0}/_node/{1}/_stats".format(base_url, str(node))
-        node_stats = flatten_dict(_api_call(stats_url, opener=opener, auth_header=auth_header))
-        # Node name is added to the dimensions to filter them easily.
-        conf['dimensions']['node'] = str(node)
-        node_metrics = metrics['node_metrics']
+            # To keep track of number of dpm sent.
+            dpm_count = 0
 
-        # To keep track of number of dpm sent.
-        dpm_count = 0
+            for (k, v) in node_metrics:
+                if k not in node_stats:
+                    continue
+                val = node_stats.get(k)
+                if val is None:
+                    val = 0
+                # Removing the '.value' string from the key - to make metric name simple
+                k = k.replace(".value", "")
+                type_instance = "couchdb.{0}".format(str(k))
+                sfx.dispatch_values(values=[val],
+                                    dimensions=conf['dimensions'],
+                                    plugin=PLUGIN_NAME,
+                                    plugin_instance=conf['plugin_instance'],
+                                    type=v,
+                                    type_instance=type_instance)
+                dpm_count = dpm_count + 1
+            conf['dimensions'].pop('node', None)
 
-        for (k, v) in node_metrics:
-            if k not in node_stats:
-                continue
-            val = node_stats.get(k)
-            if val is None:
-                val = 0
-            # Removing the '.value' string from the key - to make metric name simple
-            k = k.replace(".value", "")
-            type_instance = "couchdb.{0}".format(str(k))
-            sfx.dispatch_values(values=[val],
-                                dimensions=conf['dimensions'],
-                                plugin=PLUGIN_NAME,
-                                plugin_instance=conf['plugin_instance'],
-                                type=v,
-                                type_instance=type_instance)
-            dpm_count = dpm_count + 1
-        conf['dimensions'].pop('node', None)
+            # API call to the nodes_list_url will provide the list of 
+            # all the nodes present in the cluster.
+            nodes_list_url = "{0}/_membership".format(base_url)
+            membership = _api_call(nodes_list_url, opener=opener, auth_header=auth_header)
+            up_nodes_list = list(set(membership['cluster_nodes']) & set(membership['all_nodes']))
+            up_nodes_list.sort(reverse=True)
+            
+            if node == up_nodes_list[0]:
+                # API call to the all_dbs_url will provide the list of db's present in CouchDB.
+                all_dbs_url = "{0}/_all_dbs".format(base_url)
+                dbs_list = _api_call(all_dbs_url, opener=opener, auth_header=auth_header)
+                # The stats for each db like disk_size, doc_count etc are collected.
+                for db in dbs_list:
+                    db_url = "{0}/{1}".format(base_url, str(db))
+                    db_metrics = flatten_dict(_api_call(db_url, opener=opener, auth_header=auth_header))
+                    for (k, v) in metrics['db_metrics']:
+                        if k not in db_metrics:
+                            continue
+                        val = db_metrics.get(k)
+                        if val is None:
+                            val = 0
+                        type_instance = "couchdb.{0}".format(str(k))
+                        conf['dimensions']['db'] = db
+                        sfx.dispatch_values(values=[val], dimensions=conf['dimensions'],
+                                            plugin=PLUGIN_NAME,
+                                            plugin_instance=conf['plugin_instance'],
+                                            type=v,
+                                            type_instance=type_instance)
+                        conf['dimensions'].pop('db', None)
+                        dpm_count = dpm_count + 1
 
-        # API call to the nodes_list_url will provide the list of all the nodes present in the cluster.
-        nodes_list_url = "{0}/_membership".format(base_url)
-        cluster_nodes_list = (_api_call(nodes_list_url, opener=opener, auth_header=auth_header))['cluster_nodes']
-
-        if node == cluster_nodes_list[0]:
-            # API call to the all_dbs_url will provide the list of db's present in CouchDB.
-            all_dbs_url = "{0}/_all_dbs".format(base_url)
-            dbs_list = _api_call(all_dbs_url, opener=opener, auth_header=auth_header)
-            # The stats for each db like disk_size, doc_count etc are collected.
-            for db in dbs_list:
-                db_url = "{0}/{1}".format(base_url, str(db))
-                db_metrics = flatten_dict(_api_call(db_url, opener=opener, auth_header=auth_header))
-                for (k, v) in metrics['db_metrics']:
-                    if k not in db_metrics:
-                        continue
-                    val = db_metrics.get(k)
-                    if val is None:
-                        val = 0
-                    type_instance = "couchdb.{0}".format(str(k))
-                    conf['dimensions']['db'] = db
-                    sfx.dispatch_values(values=[val], dimensions=conf['dimensions'],
-                                        plugin=PLUGIN_NAME,
-                                        plugin_instance=conf['plugin_instance'],
-                                        type=v,
-                                        type_instance=type_instance)
-                    conf['dimensions'].pop('db', None)
-                    dpm_count = dpm_count + 1
-
-        log.info("{0} data points sent for instance : {1}".format(str(dpm_count), conf['instance_id']))
-
+            log.info("{0} data points sent for instance : {1}".format(str(dpm_count), conf['instance_id']))
+        else:
+            log.info("The instance is down")
 
 def init():
     """
