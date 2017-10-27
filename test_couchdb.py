@@ -49,6 +49,7 @@ mock_config = mock.Mock()
 mock_config.children = [
     ConfigOption('Host', ('localhost', )),
     ConfigOption('Port', ('5984', )),
+    ConfigOption('Node', ('couchdb@node1', )),
     ConfigOption('Interval', ('10', )),
     ConfigOption('Cluster', ('MockCouchDbCluster', )),
     ConfigOption('Username', ('username', )),
@@ -61,6 +62,7 @@ def test_default_config():
     module_config = couchdb_plugin.config(mock_config)
     assert module_config['plugin_config']['Host'] == 'localhost'
     assert module_config['plugin_config']['Port'] == '5984'
+    assert module_config['plugin_config']['Node'] == 'couchdb@node1'
     assert module_config['interval'] == 10
     assert module_config['username'] == 'username'
     assert module_config['password'] == 'password'
@@ -74,6 +76,7 @@ mock_config_ssl = mock.Mock()
 mock_config_ssl.children = [
     ConfigOption('Host', ('localhost', )),
     ConfigOption('Port', ('5984', )),
+    ConfigOption('Node', ('couchdb@node1', )),
     ConfigOption('Interval', ('10', )),
     ConfigOption('Cluster', ('MockCouchDbCluster', )),
     ConfigOption('Username', ('username', )),
@@ -88,6 +91,7 @@ def test_config_ssl():
     module_config = couchdb_plugin.config(mock_config_ssl)
     assert module_config['plugin_config']['Host'] == 'localhost'
     assert module_config['plugin_config']['Port'] == '5984'
+    assert module_config['plugin_config']['Node'] == 'couchdb@node1'
     assert module_config['interval'] == 10
     assert module_config['username'] == 'username'
     assert module_config['password'] == 'password'
@@ -99,4 +103,5 @@ def test_config_ssl():
 
 @mock.patch('couchdb_plugin._api_call', mock_api_call)
 def test_with_default_metrics():
-    couchdb_plugin.read(couchdb_plugin.config(mock_config))
+    couchdb_plugin.config(mock_config)
+    couchdb_plugin.read()
