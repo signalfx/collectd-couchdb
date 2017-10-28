@@ -103,5 +103,4 @@ def test_config_ssl():
 
 @mock.patch('couchdb_plugin._api_call', mock_api_call)
 def test_with_default_metrics():
-    couchdb_plugin.config(mock_config)
-    couchdb_plugin.read()
+    couchdb_plugin.read(couchdb_plugin.config(mock_config))
