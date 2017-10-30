@@ -67,6 +67,8 @@ def config(conf):
             username = kv.values[0]
         elif kv.key == 'Password' and kv.values[0]:
             password = kv.values[0]
+        elif kv.key == 'Cluster' and kv.values[0]:
+            custom_dimensions['Cluster'] = kv.values[0]
         elif kv.key == 'ssl_keyfile' and kv.values[0]:
             ssl_keys['ssl_keyfile'] = kv.values[0]
         elif kv.key == 'ssl_certificate' and kv.values[0]:

@@ -52,7 +52,7 @@ LoadPlugin python
     Interval 10
     Username "admin"
     Password "admin"
-    Dimension "Cluster" "dev"
+    Cluster "dev"
   </Module>
   <Module couchdb_plugin>
     Host "localhost"
@@ -60,7 +60,7 @@ LoadPlugin python
     Interval 10
     Username "admin"
     Password "admin"
-    Dimension "Cluster" "dev"
+    Cluster "dev"
   </Module>
 </Plugin>
 ```
