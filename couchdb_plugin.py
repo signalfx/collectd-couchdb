@@ -14,7 +14,7 @@ try:
 except ImportError:
     try:
         import dummy_collectd as collectd
-    except:
+    except ImportError:
         pass
 
 # Plugin name
@@ -238,7 +238,7 @@ def read(conf):
     up_url = "{0}/_up".format(base_url)
     try:
         status = (_api_call(up_url))['status']
-    except:
+    except ValueError:
         status = "fail"
     if status == 'ok':
         node_stats = {}

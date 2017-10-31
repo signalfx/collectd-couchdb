@@ -27,8 +27,11 @@ def mock_api_call(url, opener=None, auth_header=None):
     if '/test_db' in url:
         return sample_responses.db_stats
 
-    if '/_node/test_node/_stats' in url:
+    if '/_node/couchdb@node1/_stats' in url:
         return sample_responses.node_stats
+
+    if '/_up' in url:
+        return {"status" : "ok"}
 
 
 import couchdb_plugin

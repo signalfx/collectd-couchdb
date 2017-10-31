@@ -5,7 +5,7 @@ try:
 except ImportError:
     try:
         import dummy_collectd as collectd
-    except:
+    except ImportError:
         pass
 
 NOTIF_FAILURE = collectd.NOTIF_FAILURE
