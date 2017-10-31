@@ -1,8 +1,6 @@
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 import json
-import signal
 import threading
-from time import time
 
 # This module collects metrics from collectd and can echo them back out for
 # making assertions on the collected metrics.

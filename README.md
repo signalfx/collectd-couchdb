@@ -28,6 +28,7 @@ Optional configurations keys include:
 * Username - Username required for authentication of couchdb
 * Pasword - Password required for authentication of couchdb
 * LogLevel - Specifies the level of logging. 
+* Cluster - Name of the Cluster.
 * EnhancedMetrics - Flag to specify if the uncommented enhanced metrics in couchdb_metrics.py are needed. Default is False
 * Dimension - Add extra dimensions to your metrics
 
