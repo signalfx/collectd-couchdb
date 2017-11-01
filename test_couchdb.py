@@ -57,7 +57,11 @@ mock_config.children = [
     ConfigOption('Cluster', ('MockCouchDbCluster', )),
     ConfigOption('Username', ('username', )),
     ConfigOption('Password', ('password', )),
-    ConfigOption('Testing', ('True', ))
+    ConfigOption('Testing', ('True', )),
+    ConfigOption('EnhancedMetrics', ('True', )),
+    ConfigOption('IncludeMetric', ('counter.couchdb.rexi.buffered', )),
+    ConfigOption('IncludeMetric', ('counter.couchdb.couch_log.level.alert', )),
+    ConfigOption('ExcludeMetric', ('counter.couchdb.couchdb.httpd.aborted_requests', ))
 ]
 
 
@@ -71,6 +75,11 @@ def test_default_config():
     assert module_config['password'] == 'password'
     assert module_config['base_url'] == "http://localhost:5984"
     assert module_config['metrics'] is not None
+    node_metrics = module_config['metrics']['node_metrics']
+    assert node_metrics is not None
+    assert ('rexi.buffered', 'counter') in node_metrics
+    assert ('couch_log.level.alert', 'counter') in node_metrics
+    assert ('couchdb.httpd.aborted_requests') not in node_metrics
     assert module_config['metrics']['node_metrics'] is not None
     assert module_config['metrics']['db_metrics'] is not None
 
@@ -90,6 +99,7 @@ mock_config_ssl.children = [
     ConfigOption('Testing', ('True', ))
 ]
 
+
 def test_config_ssl():
     module_config = couchdb_plugin.config(mock_config_ssl)
     assert module_config['plugin_config']['Host'] == 'localhost'
@@ -107,3 +117,4 @@ def test_config_ssl():
 @mock.patch('couchdb_plugin._api_call', mock_api_call)
 def test_with_default_metrics():
     couchdb_plugin.read(couchdb_plugin.config(mock_config))
+

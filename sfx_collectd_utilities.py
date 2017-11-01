@@ -13,12 +13,6 @@ NOTIF_WARNING = collectd.NOTIF_WARNING
 NOTIF_OKAY = collectd.NOTIF_OKAY
 
 
-# TODO: @charlie add tls authentication for making requests
-
-
-# TODO: @charlie add functions for managing versioned metrics
-
-
 class CollectdLogHandler(logging.Handler):
     """Log handler to forward statements to collectd
     A custom log handler that forwards log messages raised
@@ -139,14 +133,6 @@ def _parse_dimensions(dimensions={}, max_length=1022):
         # return ','.join(['='.join(p) for p in dimensions.items()])[:(max_length)]
     else:
         return ''
-
-
-def isValidDimensionKey():
-    """
-    Returns True if the string is a valid dimension key or False if it is not
-    """
-    isValid = True
-    return isValid
 
 
 # host, plugin, plugin_instance, time, type, type_instance

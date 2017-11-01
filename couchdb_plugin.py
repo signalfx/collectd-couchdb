@@ -43,8 +43,11 @@ def config(conf):
     interval = None
     ssl_keys = {}
     enhanced_metrics = False
+    optional_included_metrics = []
+    excluded_metrics = []
     testing = False
     instance_id = "{0}-{1}".format(PLUGIN_NAME, str(INSTANCE_COUNT))
+    basic_metrics = couchdb_metrics.get_basic_metrics()
 
     for kv in conf.children:
         log.debug(str(kv))
@@ -69,6 +72,12 @@ def config(conf):
             password = kv.values[0]
         elif kv.key == 'Cluster' and kv.values[0]:
             custom_dimensions['Cluster'] = kv.values[0]
+        elif kv.key == 'IncludeMetric' and kv.values[0]:
+            include_metric = kv.values[0]
+            optional_included_metrics.append(('.'.join(include_metric.split('.')[2:]), include_metric.split('.')[0]))
+        elif kv.key == 'ExcludeMetric' and kv.values[0]:
+            exclude_metric = kv.values[0]
+            excluded_metrics.append(('.'.join(exclude_metric.split('.')[2:]), exclude_metric.split('.')[0]))
         elif kv.key == 'ssl_keyfile' and kv.values[0]:
             ssl_keys['ssl_keyfile'] = kv.values[0]
         elif kv.key == 'ssl_certificate' and kv.values[0]:
@@ -114,12 +123,23 @@ def config(conf):
     else:
         opener = urllib2.build_opener(auth_handler)
 
-    node_metrics = couchdb_metrics.couchdb_metrics['basic_metrics']['node_metrics']
+    node_metrics = []
+    node_metrics.extend(basic_metrics['node_metrics'])
 
     if enhanced_metrics is True:
-        node_metrics.extend(couchdb_metrics.couchdb_metrics['enhanced_metrics']['node_metrics'])
+        node_metrics.extend((couchdb_metrics.get_enhanced_metrics())['node_metrics'])
 
-    db_metrics = couchdb_metrics.couchdb_metrics['basic_metrics']['db_metrics']
+    if len(optional_included_metrics) > 0:
+        node_metrics.extend(optional_included_metrics)
+
+    if len(excluded_metrics) > 0:
+        for t in excluded_metrics:
+            try:
+                node_metrics.remove(t)
+            except ValueError:
+                pass
+
+    db_metrics = basic_metrics['db_metrics']
 
     metrics = {
         'node_metrics': node_metrics,
@@ -215,8 +235,10 @@ def flatten_dict(d, result=None):
                 elif isinstance(element, list):
                     if len(element) == 2:
                         keyB = ".".join([key, str(element[0])])
+                        keyB = keyB.replace(".value", "")
                         result[keyB] = element[1]
         else:
+            key = key.replace(".value", "")
             result[key] = value
     return result
 
@@ -229,6 +251,7 @@ def read(conf):
     Gets all the dbs present and gets db metrics for them.
     Dispatches all the metrics.
     """
+
     global log
     log = logging.getLogger(conf['instance_id'])
 
@@ -266,8 +289,7 @@ def read(conf):
             val = node_stats.get(k)
             if val is None:
                 val = 0
-            # Removing the '.value' string from the key - to make metric name simple
-            k = k.replace(".value", "")
+
             type_instance = "couchdb.{0}".format(str(k))
             sfx.dispatch_values(values=[val],
                                 dimensions=conf['dimensions'],
