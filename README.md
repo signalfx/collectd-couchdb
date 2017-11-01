@@ -18,18 +18,21 @@ An couchdb [collectd](http://www.collectd.org/) plugin which users can use to se
 ## Configuration
 The following are required configuration keys:
 
-* Host - Required. Hostname or IP address of the couchdb member
-* Port - Required. The port of the couchdb member
+* Host - Required. Hostname or IP address of the CouchDB member
+* Port - Required. The port of the CouchDB member
 * Node - Required. The name of the node in the cluster
 
 Optional configurations keys include:
 
 * Interval - Interval between metric calls. Default is 10s
-* Username - Username required for authentication of couchdb
-* Pasword - Password required for authentication of couchdb
+* Username - Username required for authentication of CouchDB.
+* Pasword - Password required for authentication of CouchDB.
+* Node - Name of the CouchDB node in the cluster.
 * LogLevel - Specifies the level of logging. 
 * Cluster - Name of the Cluster.
-* EnhancedMetrics - Flag to specify if the uncommented enhanced metrics in couchdb_metrics.py are needed. Default is False
+* EnhancedMetrics - Flag to enable enhanced metrics. Default is False.
+* IncludeMetric - Metrics emitted by `_stats` endpoint can be included individually.
+* ExcludeMetric - Metrics emitted by `_stats` endpoint can be excluded individually.
 * Dimension - Add extra dimensions to your metrics
 
 Specify path to keyfile and certificate if certificate based authentication of clients is enabled on your couchdb server
@@ -48,20 +51,28 @@ LoadPlugin python
 
   Import couchdb_plugin
   <Module couchdb_plugin>
-    Host "localhost"
-    Port "15984"
-    Interval 10
-    Username "admin"
-    Password "admin"
-    Cluster "dev"
-  </Module>
-  <Module couchdb_plugin>
-    Host "localhost"
-    Port "25984"
-    Interval 10
-    Username "admin"
-    Password "admin"
-    Cluster "dev"
-  </Module>
+        Host "127.0.0.1"
+        Port "15984"
+        Interval 10
+        LogLevel "debug"
+        Cluster "Dev"
+        Username "admin"
+        Password "admin"
+        EnhancedMetrics "True"
+        IncludeMetric "counter.couchdb.rexi.buffered"
+        ExcludeMetric "counter.couchdb.couchdb.httpd.temporary_view_reads"
+        Node "couchdb@couchdb1"
+    </Module>
+
+    <Module couchdb_plugin>
+        Host "127.0.0.1"
+        Port "25984"
+        Interval 20
+        LogLevel "debug"
+        Cluster "Dev"
+        Username "admin"
+        Password "admin"
+        Node "couchdb@couchdb2"
+    </Module>
 </Plugin>
 ```
