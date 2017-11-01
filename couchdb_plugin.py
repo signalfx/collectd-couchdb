@@ -89,7 +89,6 @@ def config(conf):
         elif kv.key == 'Testing' and kv.values[0]:
             testing = sfx.str_to_bool(kv.values[0])
 
-    log.info("Using config settings")
     for key in required_keys:
         val = plugin_config.get(key)
         if val is None:
@@ -118,7 +117,7 @@ def config(conf):
         auth_header = "Basic {0}".format(base64.b64encode("{0}:{1}".format(username, password)))
     auth.add_password(None, uri=base_url, user=username, passwd=password)
     auth_handler = urllib2.HTTPBasicAuthHandler(auth)
-    if https_handler is not None:
+    if https_handler:
         opener = urllib2.build_opener(auth_handler, https_handler)
     else:
         opener = urllib2.build_opener(auth_handler)
@@ -126,7 +125,7 @@ def config(conf):
     node_metrics = []
     node_metrics.extend(basic_metrics['node_metrics'])
 
-    if enhanced_metrics is True:
+    if enhanced_metrics:
         node_metrics.extend((couchdb_metrics.get_enhanced_metrics())['node_metrics'])
 
     if len(optional_included_metrics) > 0:
