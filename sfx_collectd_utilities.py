@@ -130,7 +130,6 @@ def _parse_dimensions(dimensions={}, max_length=1022):
         dim_pairs.extend("%s=%s" % (k, v) for k, v in dimensions.iteritems())
         dim_str = ",".join(dim_pairs)[:max_length]
         return dim_str
-        # return ','.join(['='.join(p) for p in dimensions.items()])[:(max_length)]
     else:
         return ''
 
@@ -171,8 +170,8 @@ def dispatch_notification(message="", severity=NOTIF_OKAY,
     if severity in [NOTIF_FAILURE, NOTIF_OKAY, NOTIF_WARNING]:
         notif.severity = severity
     else:
-        raise Exception(("Unable to parse notification severity {}. "
-                         "Valid options are NOTIF_OKAY, NOTIF_WARNING, or NOTIF_FAILURE").format(severity))
+        raise Exception(("Unable to parse notification severity {}. \
+                         Valid options are NOTIF_OKAY, NOTIF_WARNING, or NOTIF_FAILURE").format(severity))
     if type_instance:  # type instance may be left empty
         notif.type_instance = type_instance
     if host:  # host is something that should just be set by collectd
