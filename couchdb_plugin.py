@@ -20,15 +20,19 @@ except ImportError:
 # Plugin name
 PLUGIN_NAME = 'couchdb'
 
-# Plugin name is registered in the logger.
-log = logging.getLogger(PLUGIN_NAME)
 
-# Global count of the number of instances of the module.
-INSTANCE_COUNT = 0
+def make_logger_name(instance_id):
+    return "%s.%s" % (PLUGIN_NAME, instance_id)
+
+
+def init():
+    """
+    The init() method will be registered as init callback which will log when plugin is initiated.
+    """
+    collectd.info("Initiating couchdb collectd plugin")
 
 
 def config(conf):
-
     """
     The config callback will get configuration details from 'conf' object.
     'conf' object contains information like host, port, username, password etc.
@@ -39,22 +43,20 @@ def config(conf):
     password = None
     custom_dimensions = {}
     required_keys = ('Host', 'Port', 'Node')
-    log_level = logging.INFO
+    log_level = logging.WARN
     interval = None
     ssl_keys = {}
     enhanced_metrics = False
     optional_included_metrics = []
     excluded_metrics = []
     testing = False
-    instance_id = "{0}-{1}".format(PLUGIN_NAME, str(INSTANCE_COUNT))
     basic_metrics = couchdb_metrics.get_basic_metrics()
 
     for kv in conf.children:
-        log.debug(str(kv))
+        collectd.debug(str(kv))
 
         if kv.key == 'LogLevel':
             log_level = sfx.get_log_level_from_config(kv.values[0])
-            log.setLevel(log_level)
         elif kv.key == 'Interval':
             interval = float(kv.values[0])
         elif kv.key == 'Dimension':
@@ -63,7 +65,7 @@ def config(conf):
                 val = str(kv.values[1])
                 custom_dimensions[key] = val
             else:
-                log.warning("Unable to parse dimensions {}".format(kv.values))
+                collectd.warning("Unable to parse dimensions {}".format(kv.values))
         elif kv.key in required_keys:
             plugin_config[kv.key] = kv.values[0]
         elif kv.key == 'Username' and kv.values[0]:
@@ -157,9 +159,11 @@ def config(conf):
                                  replace(']', ''))
         plugin_instance += dim_str
 
+    logger = logging.getLogger(make_logger_name(instance_id))
+    logger.setLevel(log_level)
+
     module_config = {
         'instance_id': instance_id,
-        'log_level': log_level,
         'interval': interval,
         'plugin_instance': plugin_instance,
         'dimensions': custom_dimensions,
@@ -175,108 +179,109 @@ def config(conf):
     if testing:
         return module_config
 
+    couchdb_collector = CouchDBCollector(module_config)
     if interval:
-        collectd.register_read(read, interval, data=module_config, name=base_url)
+        collectd.register_read(couchdb_collector.read, interval, name=base_url)
     else:
-        collectd.register_read(read, data=module_config, name=base_url)
+        collectd.register_read(couchdb_collector.read, name=base_url)
 
 
-def _api_call(url, opener=None, auth_header=None):
-    """
-    _api_call will handle all the calls to the api.
-    It adds http basic authentication header if provided.
-    The response of the api call is then deserialized from json to dict.
-    """
-    resp = None
-    try:
-        if opener is not None:
-            urllib2.install_opener(opener)
-        req = urllib2.Request(url)
-        if auth_header is not None:
-            req.add_header('Authorization', str(auth_header))
-        resp = urllib2.urlopen(req)
-    except (urllib2.HTTPError, urllib2.URLError) as e:
-        log.warning("Error making API call ({0}) {1}".format(e, url))
-        return None
-    try:
-        return json.load(resp)
-    except ValueError as e:
-        log.warning("Erro parsing JSON for API call ({0}) {1}".format(e, url))
-        return None
+class CouchDBCollector(object):
+    def __init__(self, module_config):
+        self.module_config = module_config
+        self.logger = logging.getLogger(make_logger_name(self.module_config['instance_id']))
 
+    def _api_call(self, url, opener=None, auth_header=None):
+        """
+        _api_call will handle all the calls to the api.
+        It adds http basic authentication header if provided.
+        The response of the api call is then deserialized from json to dict.
+        """
+        resp = None
+        try:
+            if opener is not None:
+                urllib2.install_opener(opener)
+            req = urllib2.Request(url)
+            if auth_header is not None:
+                req.add_header('Authorization', str(auth_header))
+            resp = urllib2.urlopen(req)
+        except (urllib2.HTTPError, urllib2.URLError) as e:
+            self.logger.warning("Error making API call ({0}) {1}".format(e, url))
+            return None
+        try:
+            return json.load(resp)
+        except ValueError as e:
+            self.logger.warning("Error parsing JSON for API call ({0}) {1}".format(e, url))
+            return None
 
-def flatten_dict(d, result=None):
-    """
-    flatten_dict method will take a nested 'dict' as a parameter and
-    converts it to a single nested dict by merging all the nested keys
-    to a single key with '.' using recursion.
-    """
-    if result is None:
-        result = {}
-    for key in d:
-        value = d[key]
-        if isinstance(value, dict):
-            value1 = {}
-            for keyIn in value:
-                value1[".".join([key, keyIn])] = value[keyIn]
-            flatten_dict(value1, result)
-        elif isinstance(value, (list, tuple)):
-            for indexB, element in enumerate(value):
-                if isinstance(element, dict):
-                    value1 = {}
-                    index = 0
-                    for keyIn in element:
-                        newkey = ".".join([key, keyIn])
-                        value1[newkey] = value[indexB][keyIn]
-                        index += 1
-                    for keyA in value1:
-                        flatten_dict(value1, result)
-                elif isinstance(element, list):
-                    if len(element) == 2:
-                        keyB = ".".join([key, str(element[0])])
-                        keyB = keyB.replace(".value", "")
-                        result[keyB] = element[1]
-        else:
-            key = key.replace(".value", "")
-            result[key] = value
-    return result
+    def flatten_dict(self, d, result=None):
+        """
+        flatten_dict method will take a nested 'dict' as a parameter and
+        converts it to a single nested dict by merging all the nested keys
+        to a single key with '.' using recursion.
+        """
+        if result is None:
+            result = {}
+        for key in d:
+            value = d[key]
+            if isinstance(value, dict):
+                value1 = {}
+                for keyIn in value:
+                    value1[".".join([key, keyIn])] = value[keyIn]
+                self.flatten_dict(value1, result)
+            elif isinstance(value, (list, tuple)):
+                for indexB, element in enumerate(value):
+                    if isinstance(element, dict):
+                        value1 = {}
+                        index = 0
+                        for keyIn in element:
+                            newkey = ".".join([key, keyIn])
+                            value1[newkey] = value[indexB][keyIn]
+                            index += 1
+                        for keyA in value1:
+                            self.flatten_dict(value1, result)
+                    elif isinstance(element, list):
+                        if len(element) == 2:
+                            keyB = ".".join([key, str(element[0])])
+                            keyB = keyB.replace(".value", "")
+                            result[keyB] = element[1]
+            else:
+                key = key.replace(".value", "")
+                result[key] = value
+        return result
 
+    def read(self):
+        """
+        The read method will get the different nodes present in cluster.
+        Gets the stats(metrics)for all the nodes.
+        Gets all the dbs present and gets db metrics for them.
+        Dispatches all the metrics.
+        """
+        base_url = self.module_config['base_url']
+        up_url = "{0}/_up".format(base_url)
+        try:
+            status = self._api_call(up_url)['status']
+        except (ValueError, KeyError):
+            status = "fail"
 
-def read(conf):
+        if status != 'ok':
+            self.logger.info("CouchDB instance at {} is down", base_url)
+            return
 
-    """
-    The read method will get the different nodes present in cluster.
-    Gets the stats(metrics)for all the nodes.
-    Gets all the dbs present and gets db metrics for them.
-    Dispatches all the metrics.
-    """
-
-    global log
-    log = logging.getLogger(conf['instance_id'])
-
-    log.info("READING CALLBACK")
-
-    base_url = conf['base_url']
-    up_url = "{0}/_up".format(base_url)
-    try:
-        status = (_api_call(up_url))['status']
-    except ValueError:
-        status = "fail"
-    if status == 'ok':
         node_stats = {}
         auth_header = None
-        if "auth_header" in conf:
-            auth_header = conf['auth_header']
-        opener = conf['opener']
-        node = conf['plugin_config']['Node']
+        if "auth_header" in self.module_config:
+            auth_header = self.module_config['auth_header']
+        opener = self.module_config['opener']
+        node = self.module_config['plugin_config']['Node']
 
-        metrics = conf['metrics']
+        metrics = self.module_config['metrics']
 
         # API call to the stats_url will provide the stats of the node
         stats_url = "{0}/_node/{1}/_stats".format(base_url, str(node))
-        node_stats = flatten_dict(_api_call(stats_url, opener=opener, auth_header=auth_header))
+        node_stats = self.flatten_dict(self._api_call(stats_url, opener=opener, auth_header=auth_header))
         # Node name is added to the dimensions to filter them easily.
-        conf['dimensions']['node'] = str(node)
+        self.module_config['dimensions']['node'] = str(node)
         node_metrics = metrics['node_metrics']
 
         # To keep track of number of dpm sent.
@@ -291,29 +296,29 @@ def read(conf):
 
             type_instance = "couchdb.{0}".format(str(k))
             sfx.dispatch_values(values=[val],
-                                dimensions=conf['dimensions'],
+                                dimensions=self.module_config['dimensions'],
                                 plugin=PLUGIN_NAME,
-                                plugin_instance=conf['plugin_instance'],
+                                plugin_instance=self.module_config['plugin_instance'],
                                 type=v,
                                 type_instance=type_instance)
             dpm_count = dpm_count + 1
-        conf['dimensions'].pop('node', None)
+        self.module_config['dimensions'].pop('node', None)
 
         # API call to the nodes_list_url will provide the list of
         # all the nodes present in the cluster.
         nodes_list_url = "{0}/_membership".format(base_url)
-        membership = _api_call(nodes_list_url, opener=opener, auth_header=auth_header)
+        membership = self._api_call(nodes_list_url, opener=opener, auth_header=auth_header)
         up_nodes_list = list(set(membership['cluster_nodes']) & set(membership['all_nodes']))
         up_nodes_list.sort(reverse=True)
 
         if node == up_nodes_list[0]:
             # API call to the all_dbs_url will provide the list of db's present in CouchDB.
             all_dbs_url = "{0}/_all_dbs".format(base_url)
-            dbs_list = _api_call(all_dbs_url, opener=opener, auth_header=auth_header)
+            dbs_list = self._api_call(all_dbs_url, opener=opener, auth_header=auth_header)
             # The stats for each db like disk_size, doc_count etc are collected.
             for db in dbs_list:
                 db_url = "{0}/{1}".format(base_url, str(db))
-                db_metrics = flatten_dict(_api_call(db_url, opener=opener, auth_header=auth_header))
+                db_metrics = self.flatten_dict(self._api_call(db_url, opener=opener, auth_header=auth_header))
                 for (k, v) in metrics['db_metrics']:
                     if k not in db_metrics:
                         continue
@@ -321,25 +326,17 @@ def read(conf):
                     if val is None:
                         val = 0
                     type_instance = "couchdb.{0}".format(str(k))
-                    conf['dimensions']['db'] = db
-                    sfx.dispatch_values(values=[val], dimensions=conf['dimensions'],
+                    self.module_config['dimensions']['db'] = db
+                    sfx.dispatch_values(values=[val], dimensions=self.module_config['dimensions'],
                                         plugin=PLUGIN_NAME,
-                                        plugin_instance=conf['plugin_instance'],
+                                        plugin_instance=self.module_config['plugin_instance'],
                                         type=v,
                                         type_instance=type_instance)
-                    conf['dimensions'].pop('db', None)
+                    self.module_config['dimensions'].pop('db', None)
                     dpm_count = dpm_count + 1
 
-        log.info("{0} data points sent for instance : {1}".format(str(dpm_count), conf['instance_id']))
-    else:
-        log.info("The instance is down")
-
-
-def init():
-    """
-    The init() method will be registered as init callback which will log when plugin is initiated.
-    """
-    collectd.info("Initiating couchdb collectd plugin")
+        self.logger.info("{0} data points sent for instance : {1}".format(
+            str(dpm_count), self.module_config['instance_id']))
 
 
 def shutdown():
