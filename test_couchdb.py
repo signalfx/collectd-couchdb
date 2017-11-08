@@ -17,7 +17,7 @@ class MockCollectd(mock.MagicMock):
 
 sys.modules['collectd'] = MockCollectd()
 
-def mock_api_call(url, opener=None, auth_header=None):
+def mock_api_call(self, url, opener=None, auth_header=None):
     if '/_membership' in url:
         return sample_responses.cluster_nodes
 
@@ -114,7 +114,7 @@ def test_config_ssl():
     assert module_config['metrics']['db_metrics'] is not None
 
 
-@mock.patch('couchdb_plugin._api_call', mock_api_call)
+@mock.patch('couchdb_plugin.CouchDBCollector._api_call', mock_api_call)
 def test_with_default_metrics():
-    couchdb_plugin.read(couchdb_plugin.config(mock_config))
+    couchdb_plugin.CouchDBCollector(couchdb_plugin.config(mock_config)).read()
 
