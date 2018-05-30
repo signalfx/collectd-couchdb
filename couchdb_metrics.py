@@ -6,6 +6,7 @@ those can be collected to monitor CouchDB.
 couchdb_metrics = {
     "basic_metrics": {
         "node_metrics": [
+            ("couchdb.httpd.temporary_view_reads", "counter"),
             ("couchdb.httpd.aborted_requests", "counter"),
             ("couchdb.httpd.bulk_requests", "counter"),
             ("couchdb.httpd.requests", "counter"),
@@ -47,7 +48,6 @@ couchdb_metrics = {
     #   Add 'EnhancedMetrics' 'True' to the conf file
     "enhanced_metrics": {
         "node_metrics": [
-            ("couchdb.httpd.temporary_view_reads", "counter"),
             ("couchdb.open_databases", "counter"),
             ("couchdb.open_os_files", "counter"),
             ("couchdb.collect_results_time.arithmetic_mean", "gauge"),
