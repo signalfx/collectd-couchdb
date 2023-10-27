@@ -113,7 +113,7 @@ def config(conf):
     else:
         # Some CouchDB databases does not send 'WWW-authenticate' header
         # with the 401 response as it would hinder the futon features.
-        auth_header = "Basic {0}".format(base64.b64encode("{0}:{1}".format(username, password)))
+        auth_header = 'Basic {0}'.format(base64.b64encode(('{0}:{1}'.format(username, password)).encode('ascii')))
     auth.add_password(None, uri=base_url, user=username, passwd=password)
     auth_handler = urllib.request.HTTPBasicAuthHandler(auth)
     if https_handler:
