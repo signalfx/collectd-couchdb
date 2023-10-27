@@ -3,7 +3,9 @@
 import json
 import logging
 import sfx_collectd_utilities as sfx
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
 import urllib_ssl_handler
 import couchdb_metrics
 import base64
@@ -106,23 +108,20 @@ def config(conf):
                                                         ca_certs=ssl_keys['ssl_ca_certs'])
 
     # Auth handler to handle basic http authentication.
-    auth = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    auth = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     auth_header = None
     if username is None and password is None:
         username = password = ''
     else:
         # Some CouchDB databases does not send 'WWW-authenticate' header
         # with the 401 response as it would hinder the futon features.
-        # The absence of the above header will break urllib2 library.
-        # auth_header is sent as an extra measure to prevent
-        # urllib2 from failing.
-        auth_header = "Basic {0}".format(base64.b64encode("{0}:{1}".format(username, password)))
+        auth_header = 'Basic {0}'.format(base64.b64encode(('{0}:{1}'.format(username, password)).encode('ascii')))
     auth.add_password(None, uri=base_url, user=username, passwd=password)
-    auth_handler = urllib2.HTTPBasicAuthHandler(auth)
+    auth_handler = urllib.request.HTTPBasicAuthHandler(auth)
     if https_handler:
-        opener = urllib2.build_opener(auth_handler, https_handler)
+        opener = urllib.request.build_opener(auth_handler, https_handler)
     else:
-        opener = urllib2.build_opener(auth_handler)
+        opener = urllib.request.build_opener(auth_handler)
 
     node_metrics = []
     node_metrics.extend(basic_metrics['node_metrics'])
@@ -200,12 +199,12 @@ class CouchDBCollector(object):
         resp = None
         try:
             if opener is not None:
-                urllib2.install_opener(opener)
-            req = urllib2.Request(url)
+                urllib.request.install_opener(opener)
+            req = urllib.request.Request(url)
             if auth_header is not None:
                 req.add_header('Authorization', str(auth_header))
-            resp = urllib2.urlopen(req)
-        except (urllib2.HTTPError, urllib2.URLError) as e:
+            resp = urllib.request.urlopen(req)
+        except (urllib.error.HTTPError, urllib.error.URLError) as e:
             self.logger.warning("Error making API call ({0}) {1}".format(e, url))
             return None
         try:

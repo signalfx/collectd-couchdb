@@ -127,7 +127,7 @@ def _parse_dimensions(dimensions={}, max_length=1022):
 
     if dimensions:
         dim_pairs = []
-        dim_pairs.extend("%s=%s" % (k, v) for k, v in dimensions.iteritems())
+        dim_pairs.extend("%s=%s" % (k, v) for k, v in dimensions.items())
         dim_str = ",".join(dim_pairs)[:max_length]
         return dim_str
     else:
