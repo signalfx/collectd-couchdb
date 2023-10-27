@@ -3,7 +3,9 @@
 import json
 import logging
 import sfx_collectd_utilities as sfx
-import urllib.request, urllib.error, urllib.parse
+import urllib.request
+import urllib.error
+import urllib.parse
 import urllib_ssl_handler
 import couchdb_metrics
 import base64
